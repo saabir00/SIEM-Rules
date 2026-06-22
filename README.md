@@ -8,12 +8,6 @@
   <em>Mərkəzləşdirilmiş SIEM mühitləri üçün təhlükəsizlik qaydalarının (rules) və konfiqurasiyaların idarə edilməsi.</em>
 </p>
 
-<p align="center">
-  <a href="#haqqında">Haqqında</a> •
-  <a href="#struktur">Qovluq Strukturu</a> •
-  <a href="#komanda">Komandamız</a>
-</p>
-
 ---
 
 
