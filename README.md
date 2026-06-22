@@ -16,11 +16,6 @@
 
 ---
 
-## 📌 Haqqında
-
-**TripleS** komandası olaraq hazırladığımız bu repozitoriya SIEM platformaları (Splunk, QRadar və s.) üçün təhlükəsizlik qaydaları, parserlər və aşkarlama mexanizmlərini bir araya gətirir. Məqsədimiz təhlükəsizlik insidentlərini daha sürətli və effektiv şəkildə aşkar etməkdir.
-
----
 
 ## 📂 Qovluq Strukturu
 
@@ -28,5 +23,9 @@ Repomuz fərqli SIEM sistemləri üzrə səliqəli şəkildə bölünmüşdür:
 
 ```text
 SIEM-Rules/
-├── Splunk/        # Splunk üçün SIEM qaydaları və konfiqurasiyalar
-└── QRadar/        # QRadar üçün AQL qaydaları və log mənbələri
+├── QRadar/
+│   ├── rules/       # QRadar üçün AQL qaydaları, building blocks və ya XML faylları
+│   └── scripts/     # API skriptləri, avtomatlaşdırma və ya log göndərmə vasitələri
+└── Splunk/
+    ├── rules/       # Splunk üçün SPL axtarışları, Saved Searches və ya Detection Rules
+    └── scripts/     # Splunk üçün HEC skriptləri, Inputs və ya Təhlil alətləri
