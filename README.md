@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="şəkil_linki_buraya.png" width="200" alt="TripleS Logo">
+  <img src="images/image_2026-06-22_222753191.png" width="200" alt="TripleS Logo">
 </p>
 
 <h1 align="center">🛡️ SIEM-Rules - TripleS</h1>
