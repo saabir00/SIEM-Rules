@@ -1,0 +1,21 @@
+# ============================================================
+# Rule Name : Suspicious New Service Installation
+# Author    : TripleS
+# MITRE     : T1543.003 - Create or Modify System Process: Windows Service
+# Log Source: WinEventLog:System (EventCode 7045)
+# Tactic    : Persistence / Privilege Escalation
+# ============================================================
+# @name     = SOC - Suspicious New Service Installation
+# @cron     = */10 * * * *
+# @earliest = -15m@m
+# @latest   = now
+# @severity = 4
+# @app      = search
+# === SPL ===
+index=wineventlog sourcetype="WinEventLog:System" EventCode=7045
+| eval ip=lower(Service_File_Name)
+| where match(ip,"powershell|cmd\.exe|\\\\temp\\\\|\\\\appdata\\\\|-enc|frombase64|\\.bat|\\.vbs|\\.ps1|psexesvc|\\\\users\\\\public")
+| stats count values(Service_Name) AS service_name values(Service_File_Name) AS binary_path
+        values(Service_Start_Type) AS start_type BY _time, ComputerName, Account_Name
+| eval mitre="T1543.003", severity="high"
+| table _time, ComputerName, Account_Name, service_name, binary_path, start_type, mitre, severity

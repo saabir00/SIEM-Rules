@@ -1,0 +1,37 @@
+-- ============================================================
+-- Rule Name : Suspicious Service / Scheduled-Task Persistence - Advanced
+-- Author    : SIEM Team
+-- MITRE     : T1543.003 (Windows Service) / T1053.005 (Scheduled Task)
+-- Log Source: Windows Security 4697/4698 + Sysmon 1
+-- Tactic    : Persistence / Privilege Escalation
+-- ------------------------------------------------------------
+-- Reference data:
+--   SET  Known_Good_Service_Paths  (approved service binaries)
+-- ============================================================
+-- @name     = SOC - Service / Task Persistence (Advanced)
+-- @cron     = */10 * * * *
+-- @range    = LAST 15 MINUTES
+-- @severity = 8
+-- === AQL ===
+SELECT
+    "Computer"                                         AS host,
+    "Username"                                         AS username,
+    QIDNAME(qid)                                       AS event_name,
+    COALESCE("Service File Name", "Task Content")      AS binary_or_action,
+    CASE
+        WHEN COALESCE("Service File Name","Task Content") IMATCHES '.*(powershell|cmd\.exe|mshta|rundll32|regsvr32|certutil).*' THEN 'LOLBIN execution'
+        WHEN COALESCE("Service File Name","Task Content") ILIKE '%\\temp\\%'    THEN 'Runs from TEMP'
+        WHEN COALESCE("Service File Name","Task Content") ILIKE '%\\appdata\\%' THEN 'Runs from AppData'
+        WHEN COALESCE("Service File Name","Task Content") ILIKE '%-enc%'        THEN 'Encoded payload'
+        ELSE 'Other suspicious path'
+    END                                                AS reason
+FROM events
+WHERE ( ("EventID" IN (4697, 4698) AND LOGSOURCETYPENAME(devicetype) ILIKE '%Microsoft Windows Security%')
+        OR ("EventID" = 1 AND LOGSOURCETYPENAME(devicetype) ILIKE '%Sysmon%'
+            AND "Image" ILIKE '%\\sc.exe' AND "CommandLine" ILIKE '%create%') )
+    AND COALESCE("Service File Name","Task Content")
+        IMATCHES '.*(powershell|cmd\.exe|mshta|rundll32|regsvr32|certutil|\\temp\\|\\appdata\\|\\users\\public|-enc|frombase64|\.bat|\.vbs|\.ps1).*'
+    AND NOT REFERENCESETCONTAINS('Known_Good_Service_Paths', COALESCE("Service File Name","Task Content"))
+GROUP BY host, username, binary_or_action
+ORDER BY host
+LAST 15 MINUTES

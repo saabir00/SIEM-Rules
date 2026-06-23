@@ -1,0 +1,28 @@
+# ============================================================
+# Rule Name : Port Scan Detection
+# Author    : TripleS
+# MITRE     : T1046 - Network Service Discovery
+# Log Source: Firewall / Network traffic
+# Tactic    : Discovery
+# ============================================================
+# @name     = SOC - Port Scan Detection
+# @cron     = */10 * * * *
+# @earliest = -10m@m
+# @latest   = now
+# @severity = 3
+# @app      = search
+# === SPL ===
+index=firewall
+| bucket _time span=5m
+| stats dc(dest_port) AS distinct_ports
+        dc(dest_ip) AS distinct_hosts
+        count AS connection_count
+        values(action) AS actions
+        BY _time, src_ip
+| where distinct_ports >= 50 OR distinct_hosts >= 50
+| eval scan_type=case(distinct_ports>=50 AND distinct_hosts<10,"Vertical (port) scan",
+                      distinct_hosts>=50 AND distinct_ports<10,"Horizontal (host) scan",
+                      true(),"Mixed scan")
+| eval mitre="T1046", severity="medium"
+| sort - distinct_ports
+| table _time, src_ip, distinct_ports, distinct_hosts, connection_count, scan_type, mitre, severity

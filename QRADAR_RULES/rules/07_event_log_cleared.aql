@@ -1,0 +1,33 @@
+-- ============================================================
+-- Rule Name : Windows Event Log Cleared - Advanced
+-- Author    : SIEM Team
+-- MITRE     : T1070.001 - Indicator Removal: Clear Windows Event Logs
+-- Log Source: Microsoft Windows Security 1102 / System 104
+-- Tactic    : Defense Evasion
+-- ------------------------------------------------------------
+-- Logic: high-fidelity single event, enriched with asset criticality
+--        and recent-activity context so the analyst sees WHO cleared
+--        WHAT on a HOW-critical asset.
+-- ============================================================
+-- @name     = SOC - Windows Event Log Cleared (Advanced)
+-- @cron     = */5 * * * *
+-- @range    = LAST 10 MINUTES
+-- @severity = 8
+-- === AQL ===
+SELECT
+    "Computer"                                  AS host,
+    ASSETHOSTNAME(sourceip, NOW())              AS asset_name,
+    "Username"                                  AS cleared_by,
+    sourceip                                    AS src_ip,
+    GEO::LOOKUP(sourceip, 'country')            AS src_country,
+    CASE "EventID"
+        WHEN 1102 THEN 'Security audit log cleared'
+        WHEN 104  THEN 'System/application event log cleared'
+        ELSE 'Event log cleared'
+    END                                         AS action,
+    DATEFORMAT(starttime, 'yyyy-MM-dd HH:mm:ss') AS cleared_time
+FROM events
+WHERE ( ("EventID" = 1102 AND LOGSOURCETYPENAME(devicetype) ILIKE '%Microsoft Windows Security%')
+        OR ("EventID" = 104 AND LOGSOURCETYPENAME(devicetype) ILIKE '%Microsoft Windows%') )
+ORDER BY cleared_time DESC
+LAST 10 MINUTES

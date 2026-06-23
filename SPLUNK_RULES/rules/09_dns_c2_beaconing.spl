@@ -1,0 +1,31 @@
+# ============================================================
+# Rule Name : DNS Tunneling / C2 Beaconing
+# Author    : TripleS
+# MITRE     : T1071.004 - Application Layer Protocol: DNS
+# Log Source: Sysmon EventCode 22 (DNSQuery) / Stream:DNS
+# Tactic    : Command and Control / Exfiltration
+# ============================================================
+# @name     = SOC - DNS Tunneling C2 Beaconing
+# @cron     = 0 * * * *
+# @earliest = -1h@h
+# @latest   = now
+# @severity = 4
+# @app      = search
+# === SPL ===
+index=sysmon sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=22
+| eval q=lower(QueryName)
+| rex field=q "(?<subdomain>[^.]+)\."
+| eval sublen=len(subdomain)
+| stats count AS query_count
+        dc(QueryName) AS unique_queries
+        avg(sublen) AS avg_subdomain_len
+        max(sublen) AS max_subdomain_len
+        BY _time, Computer, q
+| eval domain=replace(q,"^[^.]+\.","")
+| stats sum(query_count) AS total_queries dc(q) AS distinct_subdomains
+        avg(avg_subdomain_len) AS avg_len max(max_subdomain_len) AS max_len
+        BY Computer, domain
+| where distinct_subdomains >= 50 OR avg_len >= 25 OR max_len >= 50
+| eval mitre="T1071.004", severity="high"
+| sort - distinct_subdomains
+| table Computer, domain, total_queries, distinct_subdomains, avg_len, max_len, mitre, severity

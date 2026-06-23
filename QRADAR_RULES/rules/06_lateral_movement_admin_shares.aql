@@ -1,0 +1,39 @@
+-- ============================================================
+-- Rule Name : Lateral Movement via Admin Shares / PsExec - Advanced
+-- Author    : SIEM Team
+-- MITRE     : T1021.002 - Remote Services: SMB/Windows Admin Shares
+-- Log Source: Microsoft Windows Security (EventID 5145)
+-- Tactic    : Lateral Movement
+-- ------------------------------------------------------------
+-- Reference data:
+--   SET  Admin_Jump_Hosts   (sanctioned management/jump servers)
+--   SET  IT_Admin_Accounts  (accounts allowed to use admin shares)
+-- ============================================================
+-- @name     = SOC - Lateral Movement Admin Shares (Advanced)
+-- @cron     = */10 * * * *
+-- @range    = LAST 15 MINUTES
+-- @severity = 8
+-- === AQL ===
+SELECT
+    sourceip                              AS src_ip,
+    "Username"                            AS username,
+    UNIQUECOUNT(destinationip)            AS targets_hit,
+    STRINGLISTCONCAT(STR(destinationip))  AS target_hosts,
+    COUNT(*)                              AS share_ops,
+    STRINGLISTCONCAT("Relative Target Name") AS files_written,
+    CASE
+        WHEN "Relative Target Name" IMATCHES '.*(psexesvc|paexec).*' THEN 'PsExec service binary'
+        WHEN "Relative Target Name" ILIKE '%-stdin%'                 THEN 'PsExec stdin pipe'
+        ELSE 'Executable dropped over admin share'
+    END                                   AS technique
+FROM events
+WHERE LOGSOURCETYPENAME(devicetype) ILIKE '%Microsoft Windows Security%'
+    AND "EventID" = 5145
+    AND "Share Name" IMATCHES '.*\\(ADMIN\$|C\$|IPC\$)'
+    AND "Relative Target Name" IMATCHES '.*(psexesvc|paexec|-stdin|-stdout|\.exe|\.bat|\.ps1)$'
+    AND NOT REFERENCESETCONTAINS('Admin_Jump_Hosts', STR(sourceip))
+    AND NOT REFERENCESETCONTAINS('IT_Admin_Accounts', "Username")
+GROUP BY src_ip, username
+HAVING targets_hit >= 1
+ORDER BY targets_hit DESC, share_ops DESC
+LAST 15 MINUTES

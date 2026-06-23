@@ -1,0 +1,21 @@
+# ============================================================
+# Rule Name : Windows Event Log Cleared
+# Author    : TripleS
+# MITRE     : T1070.001 - Indicator Removal: Clear Windows Event Logs
+# Log Source: WinEventLog:Security 1102 / WinEventLog:System 104
+# Tactic    : Defense Evasion
+# ============================================================
+# @name     = SOC - Windows Event Log Cleared
+# @cron     = */5 * * * *
+# @earliest = -10m@m
+# @latest   = now
+# @severity = 4
+# @app      = search
+# === SPL ===
+index=wineventlog (sourcetype="WinEventLog:Security" EventCode=1102)
+        OR (sourcetype="WinEventLog:System" EventCode=104)
+| eval action=case(EventCode==1102,"Security log cleared",EventCode==104,"Event log cleared")
+| stats count values(action) AS action values(EventCode) AS event_code
+        BY _time, ComputerName, Account_Name
+| eval mitre="T1070.001", severity="high"
+| table _time, ComputerName, Account_Name, event_code, action, mitre, severity

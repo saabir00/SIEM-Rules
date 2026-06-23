@@ -1,0 +1,44 @@
+-- ============================================================
+-- Rule Name : Brute Force / Password Spray - Advanced
+-- Author    : SIEM Team
+-- MITRE     : T1110.001 (Password Guessing) / T1110.003 (Password Spraying)
+-- Log Source: Microsoft Windows Security Event Log (EventID 4625)
+-- Tactic    : Credential Access
+-- ------------------------------------------------------------
+-- Reference data required (create once in QRadar):
+--   SET  Trusted_Service_Accounts   (svc accounts to ignore)
+--   SET  Vuln_Scanners              (authorized scanners to ignore)
+--   SET  TI_Malicious_IPs           (threat-intel bad source IPs)
+-- ============================================================
+-- @name     = SOC - Brute Force / Password Spray (Advanced)
+-- @cron     = */5 * * * *
+-- @range    = LAST 10 MINUTES
+-- @severity = 7
+-- === AQL ===
+SELECT
+    sourceip                                          AS src_ip,
+    GEO::LOOKUP(sourceip, 'country')                  AS src_country,
+    destinationip                                     AS dst_ip,
+    COUNT(*)                                          AS failed_count,
+    UNIQUECOUNT("Username")                           AS distinct_accounts,
+    (UNIQUECOUNT("Username") || ' accounts / '
+        || STR(COUNT(*)) || ' attempts')             AS spread,
+    CASE
+        WHEN UNIQUECOUNT("Username") >= 10 THEN 'PASSWORD_SPRAY'
+        WHEN COUNT(*) >= 50                THEN 'AGGRESSIVE_BRUTE_FORCE'
+        ELSE 'BRUTE_FORCE'
+    END                                               AS attack_type,
+    -- weighted risk score, boosted by threat-intel hit
+    ( COUNT(*)
+      + (UNIQUECOUNT("Username") * 5)
+      + (CASE WHEN REFERENCESETCONTAINS('TI_Malicious_IPs', STR(sourceip))
+              THEN 100 ELSE 0 END) )                  AS risk_score
+FROM events
+WHERE LOGSOURCETYPENAME(devicetype) ILIKE '%Microsoft Windows Security%'
+    AND "EventID" = 4625
+    AND NOT REFERENCESETCONTAINS('Trusted_Service_Accounts', "Username")
+    AND NOT REFERENCESETCONTAINS('Vuln_Scanners', STR(sourceip))
+GROUP BY src_ip, dst_ip
+HAVING failed_count >= 15 OR distinct_accounts >= 10
+ORDER BY risk_score DESC
+LAST 10 MINUTES

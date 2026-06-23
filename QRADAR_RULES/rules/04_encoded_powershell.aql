@@ -1,0 +1,45 @@
+-- ============================================================
+-- Rule Name : Encoded / Obfuscated PowerShell - Advanced
+-- Author    : SIEM Team
+-- MITRE     : T1059.001 - Command and Scripting Interpreter: PowerShell
+-- Log Source: Microsoft Windows Sysmon (EventID 1 - ProcessCreate)
+-- Tactic    : Execution / Defense Evasion
+-- ------------------------------------------------------------
+-- Logic: multi-indicator weighted scoring. Each obfuscation/download
+--        indicator adds points; anomalous parent (Office/browser)
+--        strongly boosts the score. Only score >= 4 alerts.
+-- ============================================================
+-- @name     = SOC - Encoded PowerShell Execution (Advanced)
+-- @cron     = */5 * * * *
+-- @range    = LAST 10 MINUTES
+-- @severity = 8
+-- === AQL ===
+SELECT
+    "Computer"        AS host,
+    "User"            AS username,
+    "ParentImage"     AS parent_process,
+    "CommandLine"     AS command_line,
+    risk_score,
+    CASE WHEN parent_anomaly = 1
+         THEN 'Suspicious parent (Office/browser/wscript)'
+         ELSE 'Normal parent' END AS parent_context
+FROM (
+    SELECT
+        "Computer", "User", "ParentImage", "CommandLine",
+        ( (CASE WHEN "CommandLine" IMATCHES '.*-e(nc|ncodedcommand)?\s+[A-Za-z0-9+/=]{30,}.*' THEN 3 ELSE 0 END)
+        + (CASE WHEN LOWER("CommandLine") LIKE '%frombase64string%'   THEN 3 ELSE 0 END)
+        + (CASE WHEN LOWER("CommandLine") LIKE '%downloadstring%'     THEN 2 ELSE 0 END)
+        + (CASE WHEN LOWER("CommandLine") LIKE '%iex%'                THEN 2 ELSE 0 END)
+        + (CASE WHEN LOWER("CommandLine") LIKE '%-w hidden%'          THEN 1 ELSE 0 END)
+        + (CASE WHEN LOWER("CommandLine") LIKE '%-nop%'               THEN 1 ELSE 0 END)
+        + (CASE WHEN LOWER("CommandLine") LIKE '%bypass%'             THEN 1 ELSE 0 END) ) AS risk_score,
+        (CASE WHEN "ParentImage" IMATCHES '.*\\(winword|excel|powerpnt|outlook|mshta|wscript|cscript|chrome|firefox)\.exe'
+              THEN 1 ELSE 0 END) AS parent_anomaly
+    FROM events
+    WHERE LOGSOURCETYPENAME(devicetype) ILIKE '%Sysmon%'
+        AND "EventID" = 1
+        AND ("Image" ILIKE '%\\powershell.exe' OR "Image" ILIKE '%\\pwsh.exe')
+)
+WHERE (risk_score + (parent_anomaly * 3)) >= 4
+ORDER BY risk_score DESC
+LAST 10 MINUTES

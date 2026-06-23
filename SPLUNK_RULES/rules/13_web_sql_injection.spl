@@ -1,0 +1,22 @@
+# ============================================================
+# Rule Name : Web Attack - SQL Injection Attempt
+# Author    : TripleS
+# MITRE     : T1190 - Exploit Public-Facing Application
+# Log Source: Web/Proxy access logs (uri_query)
+# Tactic    : Initial Access
+# ============================================================
+# @name     = SOC - Web SQL Injection Attempt
+# @cron     = */10 * * * *
+# @earliest = -10m@m
+# @latest   = now
+# @severity = 4
+# @app      = search
+# === SPL ===
+index=web (sourcetype=access_combined OR sourcetype=apache:access OR sourcetype=iis)
+| eval q=lower(urldecode(uri_query))
+| where match(q,"union\s+select|select.+from|information_schema|sleep\(|benchmark\(|or\s+1=1|'\s*or\s*'|--\s|xp_cmdshell|concat\(|0x[0-9a-f]{8}|waitfor\s+delay")
+| stats count AS hits values(uri_path) AS uri_path values(uri_query) AS payloads
+        values(http_user_agent) AS user_agent BY _time, src_ip, status
+| eval mitre="T1190", severity="high"
+| sort - hits
+| table _time, src_ip, uri_path, payloads, status, user_agent, hits, mitre, severity
