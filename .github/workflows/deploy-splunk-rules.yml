@@ -1,0 +1,38 @@
+name: Deploy Splunk Detection Rules
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "SPLUNK_RULES/rules/**.spl"
+      - "SPLUNK_RULES/scripts/**"
+      - ".github/workflows/deploy-splunk-rules.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r SPLUNK_RULES/scripts/requirements.txt
+
+      - name: Validate rules (lint before deploy)
+        run: python SPLUNK_RULES/scripts/validate_rules.py
+
+      - name: Deploy rules to Splunk
+        env:
+          SPLUNK_HOST: ${{ secrets.SPLUNK_HOST }}
+          SPLUNK_TOKEN: ${{ secrets.SPLUNK_TOKEN }}
+          SPLUNK_USERNAME: ${{ secrets.SPLUNK_USERNAME }}
+          SPLUNK_PASSWORD: ${{ secrets.SPLUNK_PASSWORD }}
+          SPLUNK_OWNER: ${{ secrets.SPLUNK_OWNER }}
+          SPLUNK_VERIFY_SSL: ${{ secrets.SPLUNK_VERIFY_SSL }}
+        run: python SPLUNK_RULES/scripts/deploy_rules.py
