@@ -1,0 +1,28 @@
+# ============================================================
+# Rule Name : HTTP Beaconing (periodic C2)
+# Author    : TripleS
+# MITRE     : T1071.001 - Application Layer Protocol: Web
+# Log Source: secure_platform:api
+# Tactic    : Command and Control
+# Advanced  : inter-arrival jitter analysis (low jitter = automated beacon)
+# ============================================================
+# @name     = SOC - HTTP Beaconing
+# @cron     = 0 * * * *
+# @earliest = -1h@h
+# @latest   = now
+# @severity = 4
+# @app      = search
+# === SPL ===
+index=* host="triples-api" sourcetype="secure_platform:api" event_type=api_request
+| sort 0 client_ip, path, _time
+| streamstats current=f last(_time) AS prev_t BY client_ip, path
+| eval interval=_time-prev_t
+| where isnotnull(interval) AND interval > 0
+| stats count AS beats avg(interval) AS avg_interval stdev(interval) AS sd_interval
+        BY client_ip, path, user_agent
+| eval jitter=round(sd_interval/(avg_interval+0.001),3)
+| where beats >= 20 AND avg_interval >= 1 AND jitter < 0.15
+| eval mitre="T1071.001", severity="high",
+       note="Low-jitter periodic requests - automated beacon/C2 pattern"
+| sort jitter
+| table client_ip, path, user_agent, beats, avg_interval, jitter, mitre, severity, note

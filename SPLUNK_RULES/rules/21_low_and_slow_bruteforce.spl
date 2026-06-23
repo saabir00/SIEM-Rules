@@ -1,0 +1,26 @@
+# ============================================================
+# Rule Name : Low-and-Slow Brute Force
+# Author    : TripleS
+# MITRE     : T1110.001 - Password Guessing (rate-evasion)
+# Log Source: secure_platform:api
+# Tactic    : Credential Access
+# Advanced  : catches slow attackers that stay under per-minute limits
+# ============================================================
+# @name     = SOC - Low-and-Slow Brute Force
+# @cron     = 0 * * * *
+# @earliest = -3h@h
+# @latest   = now
+# @severity = 4
+# @app      = search
+# === SPL ===
+index=* host="triples-api" sourcetype="secure_platform:api" event_type=api_request
+| eval p=lower(path)
+| where (like(p,"%/login%") OR like(p,"%/auth%") OR like(p,"%/signin%")) AND (status=401 OR status=403)
+| bucket _time span=1m
+| stats count AS per_min BY _time, client_ip, user
+| stats sum(per_min) AS total_failures dc(_time) AS active_minutes max(per_min) AS peak_per_min BY client_ip, user
+| where total_failures >= 30 AND peak_per_min <= 5 AND active_minutes >= 10
+| eval mitre="T1110.001", severity="high",
+       note="Sustained low-rate guessing (evades burst thresholds)"
+| sort - total_failures
+| table client_ip, user, total_failures, active_minutes, peak_per_min, mitre, severity, note

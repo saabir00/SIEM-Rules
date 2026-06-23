@@ -1,0 +1,24 @@
+# ============================================================
+# Rule Name : HTTP Verb Tampering
+# Author    : TripleS
+# MITRE     : T1190 - Exploit Public-Facing Application
+# Log Source: secure_platform:api
+# Tactic    : Initial Access
+# Advanced  : flags rare/dangerous methods on sensitive paths
+# ============================================================
+# @name     = SOC - HTTP Verb Tampering
+# @cron     = */10 * * * *
+# @earliest = -10m@m
+# @latest   = now
+# @severity = 3
+# @app      = search
+# === SPL ===
+index=* host="triples-api" sourcetype="secure_platform:api" event_type=api_request
+| eval m=upper(method)
+| where NOT (m=="GET" OR m=="POST" OR m=="HEAD" OR m=="OPTIONS")
+| eval high_risk=if(m=="PUT" OR m=="DELETE" OR m=="PATCH" OR m=="TRACE" OR m=="CONNECT",1,0)
+| stats count AS requests values(method) AS methods values(path) AS paths
+        values(status) AS statuses max(high_risk) AS high_risk BY _time, client_ip, user_agent
+| eval mitre="T1190", severity=if(high_risk==1,"high","medium")
+| sort - requests
+| table _time, client_ip, methods, paths, statuses, requests, mitre, severity

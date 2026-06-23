@@ -1,0 +1,24 @@
+# ============================================================
+# Rule Name : Open Redirect Attempt
+# Author    : TripleS
+# MITRE     : T1190 - Exploit Public-Facing Application
+# Log Source: secure_platform:api
+# Tactic    : Initial Access
+# Advanced  : redirect param pointing to an EXTERNAL host
+# ============================================================
+# @name     = SOC - Open Redirect Attempt
+# @cron     = */10 * * * *
+# @earliest = -10m@m
+# @latest   = now
+# @severity = 3
+# @app      = search
+# === SPL ===
+index=* host="triples-api" sourcetype="secure_platform:api" event_type=api_request
+| eval p=lower(urldecode(path))
+| where match(p,"(redirect|redirect_uri|url|next|return|returnurl|dest|destination|goto|continue)=https?(:|%3a)//")
+        AND NOT match(p,"=https?(:|%3a)//[^/]*triples")
+| stats count AS hits values(path) AS payloads values(status) AS statuses
+        BY _time, client_ip, user_agent
+| eval mitre="T1190", severity="medium"
+| sort - hits
+| table _time, client_ip, payloads, statuses, hits, user_agent, mitre, severity

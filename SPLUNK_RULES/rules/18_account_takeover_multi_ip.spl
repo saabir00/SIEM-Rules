@@ -1,0 +1,26 @@
+# ============================================================
+# Rule Name : Account Used From Many IPs / Countries
+# Author    : TripleS
+# MITRE     : T1078 - Valid Accounts
+# Log Source: secure_platform:api
+# Tactic    : Defense Evasion / Persistence
+# Advanced  : per-user source-IP and geo fan-out (iplocation)
+# ============================================================
+# @name     = SOC - Account Takeover (multi-IP)
+# @cron     = */15 * * * *
+# @earliest = -1h@h
+# @latest   = now
+# @severity = 5
+# @app      = search
+# === SPL ===
+index=* host="triples-api" sourcetype="secure_platform:api" event_type=api_request
+| where isnotnull(user) AND user!="null" AND user!="" AND status>=200 AND status<300
+| iplocation client_ip
+| bucket _time span=1h
+| stats dc(client_ip) AS distinct_ips dc(Country) AS distinct_countries
+        values(Country) AS countries values(client_ip) AS ips count AS requests BY _time, user
+| where distinct_ips >= 5 OR distinct_countries >= 2
+| eval mitre="T1078", severity="high",
+       note="Same account from many IPs/countries - possible takeover"
+| sort - distinct_ips
+| table _time, user, distinct_ips, distinct_countries, countries, ips, requests, mitre, severity, note

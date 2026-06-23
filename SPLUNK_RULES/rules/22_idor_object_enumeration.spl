@@ -1,0 +1,26 @@
+# ============================================================
+# Rule Name : IDOR / BOLA - Excessive Object Enumeration
+# Author    : TripleS
+# MITRE     : T1190 - Exploit Public-Facing Application
+# Log Source: secure_platform:api
+# Tactic    : Initial Access / Collection
+# Advanced  : extracts numeric object IDs from path, measures fan-out
+# ============================================================
+# @name     = SOC - IDOR / Object Enumeration
+# @cron     = */10 * * * *
+# @earliest = -15m@m
+# @latest   = now
+# @severity = 4
+# @app      = search
+# === SPL ===
+index=* host="triples-api" sourcetype="secure_platform:api" event_type=api_request
+| rex field=path "/(?<resource>[A-Za-z_]+)/(?<object_id>\d{1,})"
+| where isnotnull(object_id)
+| bucket _time span=10m
+| stats dc(object_id) AS distinct_objects count AS requests
+        values(resource) AS resources values(status) AS statuses BY _time, client_ip, user
+| where distinct_objects >= 50
+| eval mitre="T1190", severity="high",
+       note="Excessive distinct object-ID access (possible IDOR/BOLA)"
+| sort - distinct_objects
+| table _time, client_ip, user, resources, distinct_objects, requests, statuses, mitre, severity, note

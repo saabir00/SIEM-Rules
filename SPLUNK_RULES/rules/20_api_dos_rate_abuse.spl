@@ -1,0 +1,23 @@
+# ============================================================
+# Rule Name : API DoS / Request-Rate Abuse
+# Author    : TripleS
+# MITRE     : T1499 - Endpoint Denial of Service
+# Log Source: secure_platform:api
+# Tactic    : Impact
+# Advanced  : per-minute rate + latency degradation context
+# ============================================================
+# @name     = SOC - API DoS / Rate Abuse
+# @cron     = */5 * * * *
+# @earliest = -10m@m
+# @latest   = now
+# @severity = 4
+# @app      = search
+# === SPL ===
+index=* host="triples-api" sourcetype="secure_platform:api" event_type=api_request
+| bucket _time span=1m
+| stats count AS requests dc(path) AS distinct_paths
+        avg(duration_ms) AS avg_ms max(duration_ms) AS max_ms BY _time, client_ip
+| where requests >= 300
+| eval approx_rps=round(requests/60,1), mitre="T1499", severity="medium"
+| sort - requests
+| table _time, client_ip, requests, approx_rps, distinct_paths, avg_ms, max_ms, mitre, severity

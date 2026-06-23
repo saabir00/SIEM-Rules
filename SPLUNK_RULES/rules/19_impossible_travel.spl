@@ -1,0 +1,29 @@
+# ============================================================
+# Rule Name : Impossible Travel (geo-velocity)
+# Author    : TripleS
+# MITRE     : T1078 - Valid Accounts
+# Log Source: secure_platform:api
+# Tactic    : Initial Access / Defense Evasion
+# Advanced  : self-contained great-circle distance + speed calc
+# ============================================================
+# @name     = SOC - Impossible Travel
+# @cron     = */15 * * * *
+# @earliest = -2h@h
+# @latest   = now
+# @severity = 5
+# @app      = search
+# === SPL ===
+index=* host="triples-api" sourcetype="secure_platform:api" event_type=api_request
+        status>=200 status<300
+| where isnotnull(user) AND user!="null" AND user!=""
+| iplocation client_ip
+| where isnotnull(lat) AND isnotnull(lon)
+| sort 0 user, _time
+| streamstats current=f last(lat) AS plat last(lon) AS plon last(_time) AS pt last(Country) AS pcountry BY user
+| where isnotnull(plat)
+| eval km=round(6371*acos(min(1,(sin(lat*pi()/180)*sin(plat*pi()/180))
+        + cos(lat*pi()/180)*cos(plat*pi()/180)*cos((lon-plon)*pi()/180))),0)
+| eval hours=round((_time-pt)/3600,2), speed_kmh=round(km/(hours+0.001),0)
+| where hours <= 6 AND speed_kmh >= 900 AND Country!=pcountry
+| eval mitre="T1078", severity="high"
+| table _time, user, pcountry, Country, km, hours, speed_kmh, client_ip, mitre, severity

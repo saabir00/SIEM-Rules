@@ -1,0 +1,25 @@
+# ============================================================
+# Rule Name : Server-Error (5xx) Statistical Anomaly
+# Author    : TripleS
+# MITRE     : T1190 - Exploit Public-Facing Application
+# Log Source: secure_platform:api
+# Tactic    : Initial Access
+# Advanced  : per-endpoint 3-sigma spike vs its own baseline
+# ============================================================
+# @name     = SOC - Server Error Anomaly (5xx spike)
+# @cron     = */10 * * * *
+# @earliest = -2h@h
+# @latest   = now
+# @severity = 4
+# @app      = search
+# === SPL ===
+index=* host="triples-api" sourcetype="secure_platform:api" event_type=api_request status>=500
+| bucket _time span=5m
+| stats count AS errors BY _time, path
+| eventstats avg(errors) AS avg_err stdev(errors) AS sd_err BY path
+| eval threshold=round(avg_err+(3*sd_err),1)
+| where errors >= 10 AND errors > threshold
+| eval mitre="T1190", severity="high",
+       note="5xx errors >3-sigma above endpoint baseline (possible exploitation)"
+| sort - errors
+| table _time, path, errors, avg_err, threshold, mitre, severity, note

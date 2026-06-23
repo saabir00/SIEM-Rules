@@ -1,0 +1,25 @@
+# ============================================================
+# Rule Name : User-Agent Rotation / Anomaly
+# Author    : TripleS
+# MITRE     : T1071.001 - Application Layer Protocol: Web
+# Log Source: secure_platform:api
+# Tactic    : Command and Control / Defense Evasion
+# Advanced  : one IP cycling many UAs, or empty/missing UA
+# ============================================================
+# @name     = SOC - User-Agent Rotation
+# @cron     = */10 * * * *
+# @earliest = -15m@m
+# @latest   = now
+# @severity = 3
+# @app      = search
+# === SPL ===
+index=* host="triples-api" sourcetype="secure_platform:api" event_type=api_request
+| eval ua=if(isnull(user_agent) OR user_agent="" OR user_agent="-","<<missing>>",user_agent)
+| bucket _time span=10m
+| stats dc(ua) AS distinct_uas count AS requests
+        values(ua) AS user_agents BY _time, client_ip
+| where distinct_uas >= 5
+| eval mitre="T1071.001", severity="medium",
+       note="Single IP rotating through many user-agents (bot/evasion)"
+| sort - distinct_uas
+| table _time, client_ip, distinct_uas, requests, user_agents, mitre, severity, note

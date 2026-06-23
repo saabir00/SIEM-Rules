@@ -1,0 +1,23 @@
+# ============================================================
+# Rule Name : Request Latency Outlier (duration_ms anomaly)
+# Author    : TripleS
+# MITRE     : T1190 - Exploit Public-Facing Application
+# Log Source: secure_platform:api
+# Tactic    : Initial Access
+# Advanced  : per-endpoint z-score on duration_ms (time-based SQLi, heavy query)
+# ============================================================
+# @name     = SOC - Request Latency Outlier
+# @cron     = */10 * * * *
+# @earliest = -2h@h
+# @latest   = now
+# @severity = 4
+# @app      = search
+# === SPL ===
+index=* host="triples-api" sourcetype="secure_platform:api" event_type=api_request
+| eventstats avg(duration_ms) AS avg_ms stdev(duration_ms) AS sd_ms BY path
+| eval z=round((duration_ms-avg_ms)/(sd_ms+0.001),2)
+| where duration_ms >= 1000 AND duration_ms > (avg_ms + (4*sd_ms))
+| eval mitre="T1190", severity="high",
+       note="Latency >4-sigma above endpoint baseline (time-based SQLi / heavy query)"
+| sort - z
+| table _time, client_ip, user, method, path, status, duration_ms, avg_ms, z, mitre, severity, note

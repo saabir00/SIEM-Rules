@@ -1,0 +1,24 @@
+# ============================================================
+# Rule Name : CRLF / Null-Byte Injection
+# Author    : TripleS
+# MITRE     : T1190 - Exploit Public-Facing Application
+# Log Source: secure_platform:api
+# Tactic    : Initial Access
+# Advanced  : detects header-injection / response-splitting encodings
+# ============================================================
+# @name     = SOC - CRLF / Null-Byte Injection
+# @cron     = */10 * * * *
+# @earliest = -10m@m
+# @latest   = now
+# @severity = 4
+# @app      = search
+# === SPL ===
+index=* host="triples-api" sourcetype="secure_platform:api" event_type=api_request
+| eval raw=lower(path)
+| where match(raw,"%00|%0d|%0a|%09|\\x00") OR match(raw,"(\r|\n)")
+| stats count AS hits values(path) AS payloads values(status) AS statuses
+        BY _time, client_ip, user_agent
+| eval mitre="T1190", severity="high",
+       note="Encoded CR/LF/NULL in path - header injection / response splitting"
+| sort - hits
+| table _time, client_ip, payloads, statuses, hits, user_agent, mitre, severity, note

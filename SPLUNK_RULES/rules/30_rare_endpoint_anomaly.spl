@@ -1,0 +1,25 @@
+# ============================================================
+# Rule Name : Rare / First-Seen Endpoint Anomaly
+# Author    : TripleS
+# MITRE     : T1190 - Exploit Public-Facing Application
+# Log Source: secure_platform:api
+# Tactic    : Initial Access / Discovery
+# Advanced  : flags endpoints first observed in the last 30 min vs 7-day history
+# ============================================================
+# @name     = SOC - Rare / First-Seen Endpoint
+# @cron     = */30 * * * *
+# @earliest = -7d@d
+# @latest   = now
+# @severity = 3
+# @app      = search
+# === SPL ===
+index=* host="triples-api" sourcetype="secure_platform:api" event_type=api_request
+| eval p=lower(path)
+| stats earliest(_time) AS first_seen latest(_time) AS last_seen count AS hits
+        dc(client_ip) AS distinct_ips values(status) AS statuses BY p
+| where first_seen >= relative_time(now(), "-30m")
+| eval mitre="T1190", severity="medium",
+       first_seen_h=strftime(first_seen,"%Y-%m-%d %H:%M:%S"),
+       note="Endpoint first observed in last 30 min (not in 7-day history)"
+| sort - hits
+| table p, first_seen_h, hits, distinct_ips, statuses, mitre, severity, note

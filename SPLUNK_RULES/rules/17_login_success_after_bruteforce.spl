@@ -1,0 +1,27 @@
+# ============================================================
+# Rule Name : Successful Login After Brute Force
+# Author    : TripleS
+# MITRE     : T1110 - Brute Force (successful compromise)
+# Log Source: secure_platform:api
+# Tactic    : Credential Access / Initial Access
+# Advanced  : failure/success correlation within one window
+# ============================================================
+# @name     = SOC - Login Success After Brute Force
+# @cron     = */5 * * * *
+# @earliest = -15m@m
+# @latest   = now
+# @severity = 6
+# @app      = search
+# === SPL ===
+index=* host="triples-api" sourcetype="secure_platform:api" event_type=api_request
+| eval p=lower(path)
+| where like(p,"%/login%") OR like(p,"%/auth%") OR like(p,"%/signin%") OR like(p,"%/token%")
+| eval outcome=case(status>=200 AND status<300,"success", status=401 OR status=403,"failed", true(),"other")
+| bucket _time span=10m
+| stats count(eval(outcome=="failed")) AS failures
+        count(eval(outcome=="success")) AS successes
+        values(user) AS users BY _time, client_ip
+| where failures >= 10 AND successes >= 1
+| eval mitre="T1110", severity="critical",
+       note="Account takeover likely - success after many failed logins"
+| table _time, client_ip, users, failures, successes, mitre, severity, note
