@@ -1,0 +1,33 @@
+-- ============================================================
+-- Rule Name : User Added to Administrative Group - Advanced
+-- Author    : SOC Team
+-- MITRE     : T1098 (Account Manipulation), T1078 (Valid Accounts)
+-- Log Source: Microsoft Windows Security Event Log
+-- Tactic    : Privilege Escalation
+-- ------------------------------------------------------------
+-- Reference data:
+--   False Positives: Approved IT privilege escalation requests, Active Directory syncs.
+-- ============================================================
+-- @name     = SOC: User Added to Administrative Privileged Group (Advanced)
+-- @cron     = */5 * * * *
+-- @range    = LAST 5 MINUTES
+-- @severity = 9
+-- === AQL ===
+SELECT 
+    "Computer"                                        AS host_name, 
+    "MemberName"                                      AS added_user, 
+    "TargetUserName"                                  AS target_group, 
+    "TargetSid"                                       AS group_sid,
+    "SubjectUserName"                                 AS added_by, 
+    LOGSOURCENAME(logsourceid)                        AS log_source, 
+    starttime                                         AS event_time 
+FROM events 
+WHERE ("EventID" = 4732 OR "EventID" = 4728) 
+    AND LOGSOURCETYPENAME(devicetype) ILIKE '%Windows%' 
+    AND (
+        "TargetUserName" ILIKE '%Admin%' 
+        OR "TargetSid" ILIKE '%-544' 
+        OR "TargetSid" ILIKE '%-512'
+    )
+ORDER BY starttime DESC 
+LAST 5 MINUTES
