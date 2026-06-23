@@ -12,7 +12,7 @@
 # @severity = 4
 # @app      = search
 # === SPL ===
-index=wineventlog sourcetype="WinEventLog:Security" EventCode=4625
+index=* host="triples-api" sourcetype="WinEventLog:Security" EventCode=4625
 | bucket _time span=10m
 | stats count AS failed_count
         values(src_ip) AS src_ip

@@ -12,7 +12,7 @@
 # @severity = 4
 # @app      = search
 # === SPL ===
-index=auth (action=success OR EventCode=4624 OR status=Success)
+index=* host="triples-api" (action=success OR EventCode=4624 OR status=Success)
 | iplocation src_ip
 | where isnotnull(Country) AND isnotnull(lat) AND isnotnull(lon)
 | sort 0 user, _time

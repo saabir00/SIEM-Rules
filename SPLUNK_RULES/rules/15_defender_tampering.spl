@@ -12,7 +12,7 @@
 # @severity = 5
 # @app      = search
 # === SPL ===
-index=wineventlog (source="*Windows Defender*" EventCode IN (5001,5010,5012,5101))
+index=* host="triples-api" (source="*Windows Defender*" EventCode IN (5001,5010,5012,5101))
         OR (sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1
             CommandLine="*Set-MpPreference*DisableRealtimeMonitoring*")
         OR (sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1

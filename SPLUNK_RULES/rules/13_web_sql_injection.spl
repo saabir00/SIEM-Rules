@@ -12,7 +12,7 @@
 # @severity = 4
 # @app      = search
 # === SPL ===
-index=web (sourcetype=access_combined OR sourcetype=apache:access OR sourcetype=iis)
+index=* host="triples-api" (sourcetype=access_combined OR sourcetype=apache:access OR sourcetype=iis)
 | eval q=lower(urldecode(uri_query))
 | where match(q,"union\s+select|select.+from|information_schema|sleep\(|benchmark\(|or\s+1=1|'\s*or\s*'|--\s|xp_cmdshell|concat\(|0x[0-9a-f]{8}|waitfor\s+delay")
 | stats count AS hits values(uri_path) AS uri_path values(uri_query) AS payloads

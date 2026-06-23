@@ -12,7 +12,7 @@
 # @severity = 4
 # @app      = search
 # === SPL ===
-index=wineventlog (sourcetype="WinEventLog:Security" EventCode=1102)
+index=* host="triples-api" (sourcetype="WinEventLog:Security" EventCode=1102)
         OR (sourcetype="WinEventLog:System" EventCode=104)
 | eval action=case(EventCode==1102,"Security log cleared",EventCode==104,"Event log cleared")
 | stats count values(action) AS action values(EventCode) AS event_code

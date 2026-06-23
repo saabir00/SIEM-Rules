@@ -12,7 +12,7 @@
 # @severity = 4
 # @app      = search
 # === SPL ===
-index=wineventlog sourcetype="WinEventLog:Security" EventCode=4698
+index=* host="triples-api" sourcetype="WinEventLog:Security" EventCode=4698
 | eval cmd=lower(Task_Content)
 | where match(cmd,"powershell|cmd\.exe|-enc|frombase64|\\\\temp\\\\|\\\\appdata\\\\|mshta|rundll32|regsvr32|certutil|\\.bat|\\.vbs|\\.ps1")
 | stats count values(Task_Name) AS task_name values(Task_Content) AS task_action

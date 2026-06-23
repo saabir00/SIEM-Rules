@@ -12,7 +12,7 @@
 # @severity = 4
 # @app      = search
 # === SPL ===
-index=firewall (action=allowed OR action=allow)
+index=* host="triples-api" (action=allowed OR action=allow)
 | where cidrmatch("10.0.0.0/8",src_ip) OR cidrmatch("172.16.0.0/12",src_ip) OR cidrmatch("192.168.0.0/16",src_ip)
 | where NOT (cidrmatch("10.0.0.0/8",dest_ip) OR cidrmatch("172.16.0.0/12",dest_ip) OR cidrmatch("192.168.0.0/16",dest_ip))
 | stats sum(bytes_out) AS total_bytes_out dc(dest_ip) AS distinct_dests

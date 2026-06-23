@@ -12,7 +12,7 @@
 # @severity = 5
 # @app      = search
 # === SPL ===
-index=wineventlog sourcetype="WinEventLog:Security" (EventCode=4625 OR EventCode=4624)
+index=* host="triples-api" sourcetype="WinEventLog:Security" (EventCode=4625 OR EventCode=4624)
 | eval outcome=if(EventCode=4625,"failed","success")
 | bucket _time span=15m
 | stats count(eval(outcome=="failed")) AS failures

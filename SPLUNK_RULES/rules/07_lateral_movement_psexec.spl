@@ -12,7 +12,7 @@
 # @severity = 4
 # @app      = search
 # === SPL ===
-index=wineventlog sourcetype="WinEventLog:Security" EventCode=5145
+index=* host="triples-api" sourcetype="WinEventLog:Security" EventCode=5145
 Share_Name IN ("\\\\*\\ADMIN$","\\\\*\\C$","\\\\*\\IPC$")
 | eval rn=lower(Relative_Target_Name)
 | where match(rn,"psexesvc|paexec|\\.exe$|\\.bat$|\\.ps1$") OR Relative_Target_Name="*-stdin*" OR Relative_Target_Name="*-stdout*"
