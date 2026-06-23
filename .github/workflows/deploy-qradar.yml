@@ -1,0 +1,59 @@
+name: Deploy QRadar Rules
+
+# Repo kökündə .github/workflows/ qovluğuna qoyun.
+# Axın: push -> validate (offline lint) -> deploy_rules.py
+#        (Mərhələ 1: AQL compile-check | Mərhələ 2: CMT real deploy)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'QRADAR_RULES/rules/**'
+      - 'QRADAR_RULES/content_packages/**'
+      - 'scripts/**'
+  workflow_dispatch:
+
+concurrency:
+  group: qradar-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest        # QRadar daxili şəbəkədədirsə self-hosted runner istifadə edin
+    environment: qradar-prod      # (opsional) manual approval üçün
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Asılılıqlar
+        run: pip install -r scripts/requirements.txt
+
+      - name: Offline validation (lint)
+        run: python scripts/validate_rules.py
+
+      - name: SSH açarını hazırla
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.QRADAR_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+
+      - name: Compile-check + Deploy
+        env:
+          QRADAR_HOST:       ${{ secrets.QRADAR_HOST }}      # https://qradar... (REST API)
+          QRADAR_TOKEN:      ${{ secrets.QRADAR_TOKEN }}     # SEC token
+          QRADAR_SSH_USER:   ${{ secrets.QRADAR_SSH_USER }}  # root
+          QRADAR_SSH_PORT:   ${{ secrets.QRADAR_SSH_PORT }}  # 22
+          QRADAR_SSH_KEY:    ~/.ssh/id_ed25519
+          QRADAR_VERIFY_SSL: 'false'                          # lab / self-signed
+          QRADAR_API_VERSION: '20.0'
+        run: python scripts/deploy_rules.py
+
+# --- Lazımi GitHub Secrets (Settings > Secrets and variables > Actions) ---
+#   QRADAR_HOST      -> https://<console-ip-ve-ya-fqdn>
+#   QRADAR_TOKEN     -> Authorized Service SEC tokeni
+#   QRADAR_SSH_KEY   -> konsola root SSH private key (tam mətn)
+#   QRADAR_SSH_USER  -> root
+#   QRADAR_SSH_PORT  -> 22
