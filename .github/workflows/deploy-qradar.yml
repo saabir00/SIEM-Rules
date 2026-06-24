@@ -10,7 +10,7 @@ on:
     paths:
       - 'QRADAR_RULES/rules/**'
       - 'QRADAR_RULES/content_packages/**'
-      - 'scripts/**'
+      - 'QRADAR_RULES/scripts/**'
   workflow_dispatch:
 
 concurrency:
