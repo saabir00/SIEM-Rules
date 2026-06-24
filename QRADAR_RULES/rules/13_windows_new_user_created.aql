@@ -1,0 +1,26 @@
+-- ============================================================
+-- Rule Name : Windows New User Account Created
+-- Author    : SOC Team
+-- MITRE     : T1136.001 (Local Account) / T1136.002 (Domain Account)
+-- Log Source: Microsoft Windows Security Event Log (EventID 4720)
+-- Tactic    : Persistence
+-- ------------------------------------------------------------
+-- WindowsLog Security formatina uygunlasdirilib. Yaradan/yaradilan hesab
+-- Message metnindedir (Account Name / New Account). Machine hesablari cixarilir.
+-- ============================================================
+-- @name     = SOC - Windows New User Account Created
+-- @cron     = */5 * * * *
+-- @range    = LAST 5 MINUTES
+-- @severity = 7
+-- === AQL ===
+SELECT
+    LOGSOURCENAME(logsourceid)   AS host,
+    username                     AS context_user,
+    DATEFORMAT(starttime, 'yyyy-MM-dd HH:mm:ss') AS event_time,
+    UTF8(payload)                AS raw_event
+FROM events
+WHERE UTF8(payload) ILIKE '%AgentLogFile=Security%'
+    AND UTF8(payload) ILIKE '%EventID=4720%'
+    AND UTF8(payload) ILIKE '%A user account was created%'
+ORDER BY starttime DESC
+LAST 5 MINUTES

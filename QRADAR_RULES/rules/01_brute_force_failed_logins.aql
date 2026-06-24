@@ -1,0 +1,32 @@
+-- ============================================================
+-- Rule Name : Brute Force / Password Spray
+-- Author    : SIEM Team
+-- MITRE     : T1110.001 (Password Guessing) / T1110.003 (Password Spraying)
+-- Log Source: Microsoft Windows Security Event Log (WindowsLog DSM, EventID 4625)
+-- Tactic    : Credential Access
+-- ------------------------------------------------------------
+-- WindowsLog formatina uygunlasdirilib:
+--   * hadise secimi  -> payload icinde 'EventID=4625' + 'AgentLogFile=Security'
+--   * machine hesablari (DC-01$) cixarilir -> username NOT ILIKE '%$'
+-- CRE offense rule-da threshold qur: source IP uzre 15+ ugursuz / 10+ ferqli hesab.
+-- ============================================================
+-- @name     = SOC - Brute Force / Password Spray
+-- @cron     = */5 * * * *
+-- @range    = LAST 10 MINUTES
+-- @severity = 7
+-- === AQL ===
+SELECT
+    sourceip                            AS src_ip,
+    GEO::LOOKUP(sourceip, 'country')    AS src_country,
+    LOGSOURCENAME(logsourceid)          AS dc_host,
+    UNIQUECOUNT(username)               AS distinct_accounts,
+    COUNT(*)                            AS failed_count
+FROM events
+WHERE UTF8(payload) ILIKE '%AgentDevice=WindowsLog%'
+    AND UTF8(payload) ILIKE '%EventID=4625%'
+    AND UTF8(payload) ILIKE '%AgentLogFile=Security%'
+    AND username NOT ILIKE '%$'
+GROUP BY src_ip, src_country, dc_host
+HAVING COUNT(*) >= 15 OR UNIQUECOUNT(username) >= 10
+ORDER BY failed_count DESC
+LAST 10 MINUTES

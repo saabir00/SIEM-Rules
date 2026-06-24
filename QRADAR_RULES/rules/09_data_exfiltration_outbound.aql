@@ -1,0 +1,33 @@
+-- ============================================================
+-- Rule Name : Large Outbound Data Exfiltration
+-- Author    : SIEM Team
+-- MITRE     : T1048 - Exfiltration Over Alternative Protocol
+-- Log Source: QRadar QFlow / Network flows
+-- Tactic    : Exfiltration
+-- ------------------------------------------------------------
+-- !!! DIQQET: Bu rule EVENT yox, FLOW melumati uzerinde isleyir
+--     (FROM flows). Qradarda Network Flow / QFlow konfiqurasiya
+--     olunmali ve flow-lar gorunmelidir (task-in Network Flow hissesi).
+-- Subquery yerine GROUP BY + HAVING istifade olunub (flat AQL).
+-- ============================================================
+-- @name     = SOC - Large Outbound Data Exfiltration
+-- @cron     = 0 * * * *
+-- @range    = LAST 1 HOURS
+-- @severity = 8
+-- === AQL ===
+SELECT
+    sourceip                         AS src_ip,
+    SUM(sourcebytes) / 1048576.0     AS total_mb,
+    UNIQUECOUNT(destinationip)       AS distinct_dests,
+    GEO::LOOKUP(destinationip, 'country') AS dst_country
+FROM flows
+WHERE ( INCIDR('10.0.0.0/8', sourceip)
+     OR INCIDR('172.16.0.0/12', sourceip)
+     OR INCIDR('192.168.0.0/16', sourceip) )
+    AND NOT INCIDR('10.0.0.0/8', destinationip)
+    AND NOT INCIDR('172.16.0.0/12', destinationip)
+    AND NOT INCIDR('192.168.0.0/16', destinationip)
+GROUP BY src_ip, dst_country
+HAVING SUM(sourcebytes) / 1048576.0 >= 500
+ORDER BY total_mb DESC
+LAST 1 HOURS

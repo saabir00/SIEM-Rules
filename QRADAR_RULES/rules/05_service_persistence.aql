@@ -1,0 +1,40 @@
+-- ============================================================
+-- Rule Name : Suspicious Service / Scheduled-Task Persistence
+-- Author    : SIEM Team
+-- MITRE     : T1543.003 (Windows Service) / T1053.005 (Scheduled Task)
+-- Log Source: Microsoft Windows Security Event Log (4697 service, 4698 task)
+-- Tactic    : Persistence / Privilege Escalation
+-- ------------------------------------------------------------
+-- 4697 (service installed) ve 4698 (scheduled task created) HER IKISI
+-- Security kanalindadir -> bu rule DC-nin Security logu ile ISLEYIR.
+-- Suspekt binari/LOLBIN Message metni icinde axtarilir.
+-- ============================================================
+-- @name     = SOC - Service / Task Persistence
+-- @cron     = */10 * * * *
+-- @range    = LAST 15 MINUTES
+-- @severity = 8
+-- === AQL ===
+SELECT
+    LOGSOURCENAME(logsourceid)   AS host,
+    username                     AS performed_by,
+    DATEFORMAT(starttime, 'yyyy-MM-dd HH:mm:ss') AS event_time,
+    UTF8(payload)                AS raw_event
+FROM events
+WHERE UTF8(payload) ILIKE '%AgentLogFile=Security%'
+    AND ( UTF8(payload) ILIKE '%EventID=4697%' OR UTF8(payload) ILIKE '%EventID=4698%' )
+    AND ( UTF8(payload) ILIKE '%powershell%'
+       OR UTF8(payload) ILIKE '%cmd.exe%'
+       OR UTF8(payload) ILIKE '%mshta%'
+       OR UTF8(payload) ILIKE '%rundll32%'
+       OR UTF8(payload) ILIKE '%regsvr32%'
+       OR UTF8(payload) ILIKE '%certutil%'
+       OR UTF8(payload) ILIKE '%\\temp\\%'
+       OR UTF8(payload) ILIKE '%\\appdata\\%'
+       OR UTF8(payload) ILIKE '%\\users\\public%'
+       OR UTF8(payload) ILIKE '%-enc%'
+       OR UTF8(payload) ILIKE '%frombase64%'
+       OR UTF8(payload) ILIKE '%.bat%'
+       OR UTF8(payload) ILIKE '%.vbs%'
+       OR UTF8(payload) ILIKE '%.ps1%' )
+ORDER BY starttime DESC
+LAST 15 MINUTES

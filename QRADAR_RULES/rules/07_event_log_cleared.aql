@@ -1,0 +1,28 @@
+-- ============================================================
+-- Rule Name : Windows Event Log Cleared
+-- Author    : SIEM Team
+-- MITRE     : T1070.001 - Indicator Removal: Clear Windows Event Logs
+-- Log Source: Microsoft Windows Security 1102 / System 104
+-- Tactic    : Defense Evasion
+-- ------------------------------------------------------------
+-- Yuksek etibarli tek hadise -> threshold lazim deyil, birbasa offense.
+-- 1102 Security kanalinda, 104 System kanalindadir.
+-- ============================================================
+-- @name     = SOC - Windows Event Log Cleared
+-- @cron     = */5 * * * *
+-- @range    = LAST 10 MINUTES
+-- @severity = 8
+-- === AQL ===
+SELECT
+    LOGSOURCENAME(logsourceid)   AS host,
+    username                     AS cleared_by,
+    sourceip                     AS src_ip,
+    DATEFORMAT(starttime, 'yyyy-MM-dd HH:mm:ss') AS cleared_time,
+    UTF8(payload)                AS raw_event
+FROM events
+WHERE UTF8(payload) ILIKE '%AgentDevice=WindowsLog%'
+    AND ( UTF8(payload) ILIKE '%EventID=1102%'
+       OR UTF8(payload) ILIKE '%EventID=104%'
+       OR UTF8(payload) ILIKE '%audit log was cleared%' )
+ORDER BY starttime DESC
+LAST 10 MINUTES

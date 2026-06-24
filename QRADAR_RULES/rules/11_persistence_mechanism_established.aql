@@ -1,0 +1,31 @@
+-- ============================================================
+-- Rule Name : Persistence Mechanism Established (Linux)
+-- Author    : SOC Team
+-- MITRE     : T1053 (Cron) / T1543 (systemd) / T1098.004 (authorized_keys)
+-- Log Source: Linux OS (auditd / syslog)
+-- Tactic    : Persistence
+-- ------------------------------------------------------------
+-- !!! DIQQET: Bu rule LINUX loglari ucundur, Windows DC Security logu YOX.
+--     Linux server-leri QRadar-a log source (LinuxServer DSM) kimi
+--     elave edilmelidir.
+-- ============================================================
+-- @name     = SOC-003 - Persistence Mechanism Detected (Linux)
+-- @cron     = */5 * * * *
+-- @range    = LAST 5 MINUTES
+-- @severity = 8
+-- === AQL ===
+SELECT
+    QIDNAME(qid)                 AS event_name,
+    sourceip                     AS source_ip,
+    username                     AS target_user,
+    LOGSOURCENAME(logsourceid)   AS log_source,
+    DATEFORMAT(starttime, 'yyyy-MM-dd HH:mm:ss') AS event_time,
+    UTF8(payload)                AS raw_event
+FROM events
+WHERE LOGSOURCENAME(logsourceid) ILIKE '%LinuxServer%'
+    AND ( UTF8(payload) ILIKE '%/etc/cron%'
+       OR UTF8(payload) ILIKE '%authorized_keys%'
+       OR UTF8(payload) ILIKE '%/etc/systemd/system%'
+       OR UTF8(payload) ILIKE '%/etc/rc.local%' )
+ORDER BY starttime DESC
+LAST 5 MINUTES

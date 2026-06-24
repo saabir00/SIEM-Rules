@@ -1,0 +1,30 @@
+-- ============================================================
+-- Rule Name : User Added to Administrative Group
+-- Author    : SOC Team
+-- MITRE     : T1098 (Account Manipulation) / T1078 (Valid Accounts)
+-- Log Source: Microsoft Windows Security Event Log (4732 / 4728)
+-- Tactic    : Privilege Escalation
+-- ------------------------------------------------------------
+-- WindowsLog Security formatina uygunlasdirilib. Administrators qrupu
+-- adi ve ya built-in SID (S-1-5-32-544 = Administrators, *-512 = Domain Admins)
+-- Message metni icinde axtarilir.
+-- ============================================================
+-- @name     = SOC - User Added to Administrative Group
+-- @cron     = */5 * * * *
+-- @range    = LAST 5 MINUTES
+-- @severity = 9
+-- === AQL ===
+SELECT
+    LOGSOURCENAME(logsourceid)   AS host,
+    username                     AS added_by_context,
+    DATEFORMAT(starttime, 'yyyy-MM-dd HH:mm:ss') AS event_time,
+    UTF8(payload)                AS raw_event
+FROM events
+WHERE UTF8(payload) ILIKE '%AgentLogFile=Security%'
+    AND ( UTF8(payload) ILIKE '%EventID=4732%' OR UTF8(payload) ILIKE '%EventID=4728%' )
+    AND ( UTF8(payload) ILIKE '%Administrators%'
+       OR UTF8(payload) ILIKE '%Domain Admins%'
+       OR UTF8(payload) ILIKE '%S-1-5-32-544%'
+       OR UTF8(payload) ILIKE '%-512%' )
+ORDER BY starttime DESC
+LAST 5 MINUTES

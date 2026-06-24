@@ -1,0 +1,36 @@
+-- ============================================================
+-- Rule Name : Privileged Group Modification
+-- Author    : SIEM Team
+-- MITRE     : T1098 (Account Manipulation) / T1078.002 (Domain Accounts)
+-- Log Source: Microsoft Windows Security Event Log (4728 / 4732 / 4756)
+-- Tactic    : Privilege Escalation / Persistence
+-- ------------------------------------------------------------
+-- WindowsLog Security formatina uygunlasdirilib. Qrup adi Message metnindedir,
+-- ona gore privileged qrup adlari payload icinde axtarilir.
+-- ============================================================
+-- @name     = SOC - Privileged Group Modification
+-- @cron     = */10 * * * *
+-- @range    = LAST 15 MINUTES
+-- @severity = 8
+-- === AQL ===
+SELECT
+    LOGSOURCENAME(logsourceid)   AS host,
+    username                     AS performed_by,
+    DATEFORMAT(starttime, 'EEE HH:mm') AS when_local,
+    DATEFORMAT(starttime, 'yyyy-MM-dd HH:mm:ss') AS event_time,
+    UTF8(payload)                AS raw_event
+FROM events
+WHERE UTF8(payload) ILIKE '%AgentLogFile=Security%'
+    AND ( UTF8(payload) ILIKE '%EventID=4728%'
+       OR UTF8(payload) ILIKE '%EventID=4732%'
+       OR UTF8(payload) ILIKE '%EventID=4756%' )
+    AND ( UTF8(payload) ILIKE '%Domain Admins%'
+       OR UTF8(payload) ILIKE '%Enterprise Admins%'
+       OR UTF8(payload) ILIKE '%Schema Admins%'
+       OR UTF8(payload) ILIKE '%Administrators%'
+       OR UTF8(payload) ILIKE '%Backup Operators%'
+       OR UTF8(payload) ILIKE '%Account Operators%'
+       OR UTF8(payload) ILIKE '%Server Operators%'
+       OR UTF8(payload) ILIKE '%DnsAdmins%' )
+ORDER BY starttime DESC
+LAST 15 MINUTES

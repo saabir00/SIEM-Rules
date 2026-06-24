@@ -1,0 +1,31 @@
+-- ============================================================
+-- Rule Name : Privilege Escalation Attempt Detected (Linux)
+-- Author    : SOC Team
+-- MITRE     : T1548 (Abuse Elevation Control) / T1068 (Exploitation for PrivEsc)
+-- Log Source: Linux OS (auditd / syslog)
+-- Tactic    : Privilege Escalation
+-- ------------------------------------------------------------
+-- !!! DIQQET: Bu rule LINUX loglari ucundur, Windows DC Security logu YOX.
+--     Linux server-leri QRadar-a LinuxServer DSM kimi elave et.
+-- ============================================================
+-- @name     = SOC-006 - Privilege Escalation Detected (Linux)
+-- @cron     = */5 * * * *
+-- @range    = LAST 5 MINUTES
+-- @severity = 9
+-- === AQL ===
+SELECT
+    QIDNAME(qid)                 AS event_name,
+    sourceip                     AS source_ip,
+    username                     AS target_user,
+    LOGSOURCENAME(logsourceid)   AS log_source,
+    DATEFORMAT(starttime, 'yyyy-MM-dd HH:mm:ss') AS event_time,
+    UTF8(payload)                AS raw_event
+FROM events
+WHERE LOGSOURCENAME(logsourceid) ILIKE '%LinuxServer%'
+    AND ( UTF8(payload) ILIKE '%sudo -i%'
+       OR UTF8(payload) ILIKE '%sudo -s%'
+       OR UTF8(payload) ILIKE '%chmod 4755%'
+       OR UTF8(payload) ILIKE '%chmod u+s%'
+       OR UTF8(payload) ILIKE '%pkexec%' )
+ORDER BY starttime DESC
+LAST 5 MINUTES

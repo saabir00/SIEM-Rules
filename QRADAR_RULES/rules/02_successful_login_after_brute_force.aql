@@ -1,0 +1,34 @@
+-- ============================================================
+-- Rule Name : Successful Login After Brute Force
+-- Author    : SIEM Team
+-- MITRE     : T1110 - Brute Force (successful compromise)
+-- Log Source: Microsoft Windows Security Event Log (WindowsLog DSM, EventID 4624)
+-- Tactic    : Credential Access / Initial Access
+-- ------------------------------------------------------------
+-- QRadar AQL "A-dan sonra B" ardicilligini ifade etmir (subquery yalniz IN ile).
+-- Bu sebebden korrelyasiya CRE offense rule-da qurulur:
+--   1) Rule 01 (Brute Force) ise dusende -> source IP-ni
+--      "BruteForce_Sources" reference set-ine ELAVE ET (CRE action).
+--   2) Bu rule yalniz hemin set-de olan source IP ucun ugurlu 4624-de tetiklensin.
+-- Asagidaki AQL ugurlu logon-lari secir (selector).
+-- ============================================================
+-- @name     = SOC - Successful Login After Brute Force
+-- @cron     = */5 * * * *
+-- @range    = LAST 15 MINUTES
+-- @severity = 9
+-- === AQL ===
+SELECT
+    sourceip                                       AS src_ip,
+    username                                       AS account,
+    LOGSOURCENAME(logsourceid)                     AS dc_host,
+    DATEFORMAT(starttime, 'yyyy-MM-dd HH:mm:ss')   AS logon_time,
+    UTF8(payload)                                  AS raw_event
+FROM events
+WHERE UTF8(payload) ILIKE '%AgentDevice=WindowsLog%'
+    AND UTF8(payload) ILIKE '%EventID=4624%'
+    AND UTF8(payload) ILIKE '%AgentLogFile=Security%'
+    AND username NOT ILIKE '%$'
+    -- CRE-de bu setri aktivlesdir: yalniz brute-force menbeyinden ugurlu login
+    -- AND REFERENCESETCONTAINS('BruteForce_Sources', STR(sourceip))
+ORDER BY starttime DESC
+LAST 15 MINUTES
