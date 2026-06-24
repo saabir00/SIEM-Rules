@@ -29,10 +29,10 @@ jobs:
           python-version: '3.11'
 
       - name: Asılılıqlar
-        run: pip install -r scripts/requirements.txt
+        run: pip install -r QRADAR_RULES/scripts/requirements.txt
 
       - name: Offline validation (lint)
-        run: python scripts/validate_rules.py
+        run: python QRADAR_RULES/scripts/validate_rules.py
 
       - name: SSH açarını hazırla
         run: |
@@ -49,7 +49,7 @@ jobs:
           QRADAR_SSH_KEY:    ~/.ssh/id_ed25519
           QRADAR_VERIFY_SSL: 'false'                          # lab / self-signed
           QRADAR_API_VERSION: '20.0'
-        run: python scripts/deploy_rules.py
+        run: python QRADAR_RULES/scripts/deploy_rules.py
 
 # --- Lazımi GitHub Secrets (Settings > Secrets and variables > Actions) ---
 #   QRADAR_HOST      -> https://<console-ip-ve-ya-fqdn>
