@@ -1,0 +1,34 @@
+-- ============================================================
+-- Rule Name : DNS Tunneling / C2 Beaconing
+-- Author    : SIEM Team
+-- MITRE     : T1071.004 (DNS) / T1572 (Protocol Tunneling)
+-- Log Source: DNS Analytics / Sysmon EventID 22 (DnsQuery)
+-- Tactic    : Command and Control / Exfiltration
+-- ------------------------------------------------------------
+-- !!! DIQQET: Windows SECURITY logunda DNS sorgulari YOXDUR. Bu rule yalniz
+--     Microsoft DNS Debug log ve ya Sysmon EID 22 log source-u elave edildikden
+--     sonra real isleyir. Hemin DSM gelene qeder "QueryName" custom property
+--     mövcud olmadigindan, hazirda yalniz HECM (volume) eslesmesi qalir.
+--
+--     DNS source elave edildikden sonra daha guclu detection ucun asagidaki
+--     setirleri SELECT/HAVING-e elave et (QueryName property yarananda):
+--       UNIQUECOUNT("QueryName") AS distinct_subdomains,
+--       MAX(STRLEN("QueryName")) AS max_label_len
+--       HAVING UNIQUECOUNT("QueryName") >= 50 OR MAX(STRLEN("QueryName")) >= 50
+-- ============================================================
+-- @name     = SOC - DNS Tunneling / C2 Beaconing
+-- @cron     = 0 * * * *
+-- @range    = LAST 1 HOURS
+-- @severity = 8
+-- === AQL ===
+SELECT
+    LOGSOURCENAME(logsourceid)   AS src_host,
+    sourceip                     AS src_ip,
+    COUNT(*)                     AS total_queries
+FROM events
+WHERE ( UTF8(payload) ILIKE '%AgentLogFile=%Sysmon%' AND UTF8(payload) ILIKE '%EventID=22%' )
+    OR LOGSOURCETYPENAME(devicetype) ILIKE '%DNS%'
+GROUP BY src_host, src_ip
+HAVING COUNT(*) >= 100
+ORDER BY total_queries DESC
+LAST 1 HOURS

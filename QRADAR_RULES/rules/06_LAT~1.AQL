@@ -1,0 +1,32 @@
+-- ============================================================
+-- Rule Name : Lateral Movement via Admin Shares / PsExec
+-- Author    : SIEM Team
+-- MITRE     : T1021.002 - Remote Services: SMB/Windows Admin Shares
+-- Log Source: Microsoft Windows Security Event Log (5145 / 5140)
+-- Tactic    : Lateral Movement
+-- ------------------------------------------------------------
+-- 5145 (Detailed File Share) ucun "Detailed File Share" audit aktiv olmalidir;
+-- 5140 (File Share) daha geniş yayilib. ADMIN$/C$/IPC$ giris axtarilir.
+-- Flat selector (GROUP BY/HAVING QRadar-da bu kombinasiyada parse xetasi verdi).
+-- CRE threshold: eyni source IP-den 1+ ferqli hedef host (yayilma) -> offense.
+-- ============================================================
+-- @name     = SOC - Lateral Movement Admin Shares
+-- @cron     = */10 * * * *
+-- @range    = LAST 15 MINUTES
+-- @severity = 8
+-- === AQL ===
+SELECT
+    sourceip                     AS src_ip,
+    username                     AS account,
+    destinationip                AS target_host,
+    DATEFORMAT(starttime, 'yyyy-MM-dd HH:mm:ss') AS event_time,
+    UTF8(payload)                AS raw_event
+FROM events
+WHERE UTF8(payload) ILIKE '%AgentLogFile=Security%'
+    AND ( UTF8(payload) ILIKE '%EventID=5145%' OR UTF8(payload) ILIKE '%EventID=5140%' )
+    AND ( UTF8(payload) ILIKE '%ADMIN$%'
+       OR UTF8(payload) ILIKE '%C$%'
+       OR UTF8(payload) ILIKE '%IPC$%' )
+    AND username NOT ILIKE '%$'
+ORDER BY starttime DESC
+LAST 15 MINUTES
