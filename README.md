@@ -16,10 +16,7 @@
 Repomuz fərqli SIEM sistemləri üzrə səliqəli şəkildə bölünmüşdür:
 
 ```text
-SIEM-Rules/
-├── QRADAR_RULES/
-│   ├── rules/       # QRadar üçün AQL qaydaları, building blocks və ya XML faylları
-│   └── scripts/     # API skriptləri, avtomatlaşdırma və ya log göndərmə vasitələri
+SIEM-Rules/   # API skriptləri, avtomatlaşdırma və ya log göndərmə vasitələri
 └── SPLUNK_RULES/
     ├── rules/       # Splunk üçün SPL axtarışları, Saved Searches və ya Detection Rules
     └── scripts/     # Splunk üçün HEC skriptləri, Inputs və ya Təhlil alətləri
